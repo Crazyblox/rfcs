@@ -52,6 +52,7 @@ doThing(buffer.create(buf_VectorCount * buf_BytesPerVector))
 ```luau
 local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
 local buf_BytesPerVector = LUAU_VECTOR_SIZE * 4
+local buf_VectorCount = 128
 
 -- No 'buf_ReadVec' function needed; less logic to be considered, removing complexity from interacting with buffers in this case.
 
