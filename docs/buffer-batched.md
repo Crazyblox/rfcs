@@ -37,22 +37,24 @@ local function buf_ReadVec(buf: buffer, i: number): vector
       nil
 )
 
-for vIdx = 1, 100 do
-  local v = vector.create(buf_ReadVec(buf, vIdx * buf_BytesPerVector))
-  -- ...
+local function doThing(buf: buffer)
+  for vIdx = 1, buffer.len(buf), buf_BytesPerVector do
+    local v = vector.create(buf_ReadVec(buf, vIdx * buf_BytesPerVector))
+    -- ...
+  end
 end
 ```
 
 Proposed batch approach:
 ```luau
 local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
-local bufVectorBytes = LUAU_VECTOR_SIZE * 4
+local buf_BytesPerVector = LUAU_VECTOR_SIZE * 4
 
 -- Logic is expressed more succinctly with lower risk of user error due to less code to consider
 
-local function doThing()
-  for vIdx = 1, 100 do
-    local v = vector.create(buffer.readf32(buf, vIdx * bufVectorBytes, LUAU_VECTOR_SIZE))
+local function doThing(buf: buffer)
+  for vIdx = 1, buffer.len(buf), buf_BytesPerVector do
+    local v = vector.create(buffer.readf32(buf, vIdx, LUAU_VECTOR_SIZE))
     -- ...
   end
 end
