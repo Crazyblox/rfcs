@@ -6,45 +6,83 @@ This RFC proposes extending the Luau `buffer` library to support batched read an
 
 ## Motivation
 
-Working closely with buffers often requires verbose loops or repeated function calls, particularly when populating vectors or other constructors that accept `...number`. Each individual call crosses the Luau/C boundary, which incurs significant overhead and limits performance gains in interpreted contexts. Batched operations would drastically reduce these crossings, offering a low-hanging fruit for major performance improvements across the language. Additionally, batched writes enable concise type truncation and conversion (e.g., f64 to u16) without manual bit manipulation or intermediate variables. This RFC builds on [prior concepts](https://github.com/luau-lang/rfcs/pull/198) but focuses strictly on `buffer` and `number` types to minimize the implementation surface and maximize ergonomic benefits for existing Luau APIs and user-provided functions that accept variadic numbers.
+Working closely with buffers often requires verbose loops or repeated function calls, particularly when populating vectors or other constructors that accept `...number`. Each individual call crosses the Luau/C boundary, which incurs significant overhead and limits performance gains in interpreted contexts. Batched operations would drastically reduce these crossings, offering a low-hanging fruit for major performance improvements across the language. Additionally, batched writes enable concise type truncation and conversion (e.g., f64 to u16) without manual bit manipulation or intermediate variables. This RFC builds on prior concepts but focuses strictly on `buffer` and `number` types to minimize the implementation surface and maximize ergonomic benefits for existing Luau APIs and user-provided functions that accept variadic numbers.
 
 ## Design
 
 ### Byte-Based Batched Reads
-Functions like `buffer.readu32` would gain an optional `count` parameter. The type suffix indicates the byte size per value (u8=1, u16=2, u32=4, f32=4, f64=8). The index advances by the number of bytes `buffer.read*` reads per index.
+`buffer.read*` would gain an optional `count` parameter. The type suffix indicates the byte size per value (u8=1, u16=2, u32=4, f32=4, f64=8). The index advances by the number of bytes `buffer.read*` reads per index.
 
-- **Current:** `buffer.readu32(buffer: buffer, index: number) -> number`
-- **Proposed:** `buffer.readu32(buffer: buffer, index: number, count: number?) -> ...number`
+- **Current:** `buffer.read*(buffer: buffer, index: number) -> number`
+- **Proposed:** `buffer.read*(buffer: buffer, index: number, count: number?) -> ...number`
 
-Batched reads allow direct forwarding of return values into constructors or any Luau function accepting `...number`:
+Batched reads allow direct forwarding of return values into constructors or any Luau function accepting `...number`.
+Example: Consolidating the need for type-specific buffer read/writes originating from [the luau team's RFC](https://github.com/luau-lang/rfcs/pull/198):
+Current Luau capabilities:
 ```luau
-local x, y, z = buffer.readu32(buf, 0, 3)
-local v = vector.create(x, y, z)
--- Or directly: local v = vector.create(buffer.readu32(buf, 0, 3))
+local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
+local buf_BytesPerVector = LUAU_VECTOR_SIZE * 4
+local buf_VectorCount = 128
+local buf = buffer.create(buf_VectorCount * buf_BytesPerVector)
+
+-- Function needs to retain logic for correct indexing, and consideration of vector dimension count set by host.
+local function buf_ReadVec(buf: buffer, i: number): vector
+  return
+    buffer.readf32(buf, i),
+    buffer.readf32(buf, i + 4),
+    buffer.readf32(buf, i + 8),
+    if LUAU_VECTOR_SIZE == 4 then
+      buffer.readf32(buf, i + 12)
+    else
+      nil
+)
+
+for vIdx = 1, 100 do
+  local v = vector.create(buf_ReadVec(buf, vIdx * buf_BytesPerVector))
+  -- ...
+end
+```
+
+Proposed batch approach:
+```luau
+local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
+local bufVectorBytes = LUAU_VECTOR_SIZE * 4
+
+-- Logic is expressed more succinctly with lower risk of user error due to less code to consider
+
+local function doThing()
+  for vIdx = 1, 100 do
+    local v = vector.create(buffer.readf32(buf, vIdx * bufVectorBytes, LUAU_VECTOR_SIZE))
+    -- ...
+  end
+end
 ```
 
 ### Byte-Based Batched Writes
-Functions like `buffer.writeu16` would accept variadic arguments. Each argument is written sequentially, advancing the index by the number of bytes `buffer.write*` writes per index. This enables elegant truncation of larger number types to smaller ones.
+`buffer.write*` functions would accept variadic arguments. Each argument is written sequentially, advancing the index by the number of bytes `buffer.write*` writes per index. This enables elegant truncation of larger number types to smaller ones.
 
-- **Current:** `buffer.writeu32(buffer: buffer, index: number, value: number) -> ()`
-- **Proposed:** `buffer.writeu32(buffer: buffer, index: number, ...number?) -> ()`
+- **Current:** `buffer.write*(buffer: buffer, index: number, value: number) -> ()`
+- **Proposed:** `buffer.write*(buffer: buffer, index: number, ...number?) -> ()`
 
-**Example: Converting `...number` (f64) to u16**
+**Example: Convert buffer u32 numbers to buffer u8 numbers, with versatility on buffer choice and index**
 *Current Luau capabilities:*
 ```luau
-local buf = buffer.create(4)
-local val1, val2 = 3.14159, 2.71828
--- Requires manual truncation or intermediate steps
-buffer.writeu16(buf, 0, math.floor(val1))
-buffer.writeu16(buf, 2, math.floor(val2))
+local function u32_to_u8(from_b: buffer, to_b: buffer, from_i: number, to_i: number, from_n: number)
+  local to_cursor = to_i
+  local from_cursor = from_i
+  for i = 1, math.max(from_n or 1, 1) do
+    buffer.writeu8(to_b, to_cursor, buffer.readu32(from_b, from_cursor))
+    to_cursor += 1 -- to_buf is u8, need to increment by 1
+    from_cursor += 4 -- from_buf is u32, need to increment by 4
+  end
+end
 ```
 
 *Proposed batched approach:*
 ```luau
-local buf = buffer.create(4)
-local val1, val2 = 3.14159, 2.71828
-buffer.writeu16(buf, 0, val1, val2) -- Automatically truncates f64 inputs to u16
-local a, b = buffer.readu16(buf, 0, 2) -- a=3, b=2
+local function u32_to_u8(from_b: buffer, to_b: buffer, from_i: number, to_i: number, from_n: number)
+  buffer.writeu8(to_buf, to_i, buffer.readu32(from_buf, from_i, from_n))
+end
 ```
 
 ### Bit-Based Batched Operations (Optional)
