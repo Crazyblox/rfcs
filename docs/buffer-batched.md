@@ -1,8 +1,8 @@
-# Batched Buffer Read/Write Operations
+# Batched Buffer Read/Write Extension
 
 ## Summary
 
-This RFC proposes extending the Luau `buffer` library to support batched read and write operations for both byte-aligned and bit-aligned data access. By allowing functions like `buffer.readu32` and `buffer.writeu16` to accept an optional count or variadic arguments, developers can read multiple values at once into `...number` or write multiple values in a single call. This reduces verbosity, minimizes Luau/C boundary crossings for improved performance (especially in interpreted execution), and enables elegant type conversion patterns while maintaining the buffer's raw, unopinionated nature.
+This RFC proposes extending the Luau `buffer` library to support batched read and write operations for both byte-based and bit-based data access. By allowing functions like `buffer.readu32` and `buffer.writeu16` to accept an optional count or variadic arguments, developers can read multiple values at once into `...number` or write multiple values in a single call. This reduces verbosity, minimizes Luau/C boundary crossings for improved performance (especially in interpreted execution), and enables elegant type conversion patterns while maintaining the buffer's raw, unopinionated nature.
 
 ## Motivation
 
@@ -10,8 +10,8 @@ Working closely with buffers often requires verbose loops or repeated function c
 
 ## Design
 
-### Byte-Aligned Batched Reads
-Functions like `buffer.readu32` would gain an optional `count` parameter. The type suffix indicates the byte size per value (u8=1, u16=2, u32=4, f32=4, f64=8). The index advances by `count * sizeof(type)` bytes.
+### Byte-Based Batched Reads
+Functions like `buffer.readu32` would gain an optional `count` parameter. The type suffix indicates the byte size per value (u8=1, u16=2, u32=4, f32=4, f64=8). The index advances by the number of bytes `buffer.read*` reads per index.
 
 - **Current:** `buffer.readu32(buffer: buffer, index: number) -> number`
 - **Proposed:** `buffer.readu32(buffer: buffer, index: number, count: number?) -> ...number`
@@ -23,8 +23,8 @@ local v = vector.create(x, y, z)
 -- Or directly: local v = vector.create(buffer.readu32(buf, 0, 3))
 ```
 
-### Byte-Aligned Batched Writes
-Functions like `buffer.writeu16` would accept variadic arguments. Each argument is written sequentially, advancing the index by `sizeof(type)` bytes per value. This enables elegant truncation of larger number types to smaller ones.
+### Byte-Based Batched Writes
+Functions like `buffer.writeu16` would accept variadic arguments. Each argument is written sequentially, advancing the index by the number of bytes `buffer.write*` writes per index. This enables elegant truncation of larger number types to smaller ones.
 
 - **Current:** `buffer.writeu32(buffer: buffer, index: number, value: number) -> ()`
 - **Proposed:** `buffer.writeu32(buffer: buffer, index: number, ...number?) -> ()`
@@ -47,7 +47,7 @@ buffer.writeu16(buf, 0, val1, val2) -- Automatically truncates f64 inputs to u16
 local a, b = buffer.readu16(buf, 0, 2) -- a=3, b=2
 ```
 
-### Bit-Aligned Batched Operations (Optional)
+### Bit-Based Batched Operations (Optional)
 `buffer.readbits` and `buffer.writebits` could similarly support batching, where the index is tracked in bits rather than bytes. For example:
 `buffer.readbits(buffer: buffer, index: number, width: number, count: number?) -> ...number`
 
