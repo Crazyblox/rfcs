@@ -59,12 +59,12 @@ Combining extended read/write behaviors enables seamless pipelines, such as read
 ## Drawbacks
 
 - **Out-of-Bounds Risks:** Batched operations increase the surface area for index/count mismatches, potentially reading or writing past buffer boundaries. Since buffers are intentionally unopinionated raw data containers, the library will not add heavy safety checks, leaving bounds validation to the developer or relying on runtime error handling.
-- **Performance Overhead (Bit-Aligned):** Bit-based batching requires dynamic bit-shifting, masking, and alignment calculations per value, which may negate performance gains compared to byte-aligned operations or existing `bit32` utilities.
+- **Performance Overhead (Bit-Based):** Bit-based batching requires dynamic bit-shifting, masking, and alignment calculations per value, which may negate performance gains compared to byte-based operations or existing `bit32` utilities.
 - **API Complexity:** Adding variadic/count parameters changes function signatures and requires clear documentation to distinguish between byte-indexed and bit-indexed modes, potentially increasing the learning curve for new developers.
 
 ## Alternatives
 
 - **Status Quo:** Developers continue writing verbose loops or chaining single-value calls, accepting higher fastcall overhead, reduced ergonomics, and slower interpreted execution.
 - **Incremental Type-Specific RFCs:** Creating separate batched functions for each primitive type would bloat Luau's standard library, increase maintenance burden, and cost more fastcall allocations.
-- **Omit Bit-Aligned Batching:** Exclude `readbits`/`writebits` batching entirely to unblock the byte-aligned proposal. This keeps the API focused, preserves performance guarantees, and leaves `bit32` as the standard tool for bitpacking.
+- **Omit Bit-Based Batching:** Exclude `readbits`/`writebits` batching entirely to unblock the byte-based portion of the proposal. This keeps the API focused, preserves performance guarantees, and leaves `bit32` as the standard tool for bitpacking.
 - **Manual Bit Manipulation:** Continue relying on `bit32` and manual loops for type conversion and bitpacking, which is more verbose, error-prone, and less performant than native batched buffer operations.
