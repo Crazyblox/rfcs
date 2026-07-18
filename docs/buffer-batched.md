@@ -17,6 +17,7 @@ Working closely with buffers often requires verbose loops or repeated function c
 - **Proposed:** `buffer.read*(buffer: buffer, index: number, count: number?) -> ...number`
 
 Batched reads allow direct forwarding of return values into constructors or any Luau function accepting `...number`.
+
 Example: Consolidating the need for type-specific buffer read/writes originating from [the luau team's RFC](https://github.com/luau-lang/rfcs/pull/198):
 Current Luau capabilities:
 ```luau
