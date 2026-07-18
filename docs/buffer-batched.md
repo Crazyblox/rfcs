@@ -23,7 +23,6 @@ Current Luau capabilities:
 local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
 local buf_BytesPerVector = LUAU_VECTOR_SIZE * 4
 local buf_VectorCount = 128
-local buf = buffer.create(buf_VectorCount * buf_BytesPerVector)
 
 -- Function needs to retain logic for correct indexing, and consideration of vector dimension count set by host.
 local function buf_ReadVec(buf: buffer, i: number): vector
@@ -43,6 +42,8 @@ local function doThing(buf: buffer)
     -- ...
   end
 end
+
+doThing(buffer.create(buf_VectorCount * buf_BytesPerVector))
 ```
 
 Proposed batch approach:
@@ -58,6 +59,8 @@ local function doThing(buf: buffer)
     -- ...
   end
 end
+
+doThing(buffer.create(buf_VectorCount * buf_BytesPerVector))
 ```
 
 ### Byte-Based Batched Writes
