@@ -19,7 +19,8 @@ Working closely with buffers often requires verbose loops or repeated function c
 Batched reads allow direct forwarding of return values into constructors or any Luau function accepting `...number`.
 
 Example: Consolidating the need for type-specific buffer read/writes originating from [the luau team's RFC](https://github.com/luau-lang/rfcs/pull/198):
-Current Luau capabilities:
+
+*Current Luau capabilities:*
 ```luau
 local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
 local buf_BytesPerVector = LUAU_VECTOR_SIZE * 4
@@ -47,7 +48,7 @@ end
 doThing(buffer.create(buf_VectorCount * buf_BytesPerVector))
 ```
 
-Proposed batch approach:
+*Proposed batch approach:*
 ```luau
 local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
 local buf_BytesPerVector = LUAU_VECTOR_SIZE * 4
@@ -71,6 +72,7 @@ doThing(buffer.create(buf_VectorCount * buf_BytesPerVector))
 - **Proposed:** `buffer.write*(buffer: buffer, index: number, ...number?) -> ()`
 
 **Example: Convert buffer u32 numbers to buffer u8 numbers, with versatility on buffer choice and index**
+
 *Current Luau capabilities:*
 ```luau
 local function u32_to_u8(from_b: buffer, to_b: buffer, from_i: number, to_i: number, from_n: number)
