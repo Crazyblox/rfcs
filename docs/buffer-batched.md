@@ -39,7 +39,7 @@ local function buf_ReadVec(buf: buffer, i: number): vector
 )
 
 local function doThing(buf: buffer)
-  for vIdx = 1, buffer.len(buf), buf_BytesPerVector do
+  for vIdx = 0, buffer.len(buf) - 1, buf_BytesPerVector do
     local v = vector.create(buf_ReadVec(buf, vIdx * buf_BytesPerVector))
     -- ...
   end
@@ -57,7 +57,7 @@ local buf_VectorCount = 128
 -- No 'buf_ReadVec' function needed; less logic to be considered, removing complexity from interacting with buffers in this case.
 
 local function doThing(buf: buffer)
-  for vIdx = 1, buffer.len(buf), buf_BytesPerVector do
+  for vIdx = 0, buffer.len(buf) - 1, buf_BytesPerVector do
     local v = vector.create(buffer.readf32(buf, vIdx, LUAU_VECTOR_SIZE))
     -- ...
   end
