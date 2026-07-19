@@ -22,46 +22,51 @@ Example: Consolidating the need for type-specific buffer read/writes originating
 
 *Current Luau capabilities:*
 ```luau
-local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
-local sizeof_vector = LUAU_VECTOR_SIZE * 4
+local VECTOR_NDIM = pcall(function() return (vector.one :: any).w end) and 4 or 3
+local VECTOR_SIZEOF = VECTOR_NDIM * 4
 
--- Function needs to retain logic for correct indexing, and consideration of vector dimension count set by host.
-local function buf_ReadVec(buf: buffer, i: number): vector
+local function buf_ReadVec3(buf: buffer, i: number)
+  return
+    buffer.readf32(buf, i),
+    buffer.readf32(buf, i + 4),
+    buffer.readf32(buf, i + 8)
+end
+
+local function buf_ReadVec4(buf: buffer, i: number)
   return
     buffer.readf32(buf, i),
     buffer.readf32(buf, i + 4),
     buffer.readf32(buf, i + 8),
-    if LUAU_VECTOR_SIZE == 4 then
-      buffer.readf32(buf, i + 12)
-    else
-      nil
-)
+    buffer.readf32(buf, i + 12)
+end
+
+local buf_ReadVec = if VECTOR_NDIM == 4 then buf_ReadVec4 else buf_ReadVec3
 
 local function doThing(buf: buffer)
-  for vIdx = 0, buffer.len(buf) - 1, sizeof_vector do
-    local v = vector.create(buf_ReadVec(buf, vIdx * buf_BytesPerVector))
+  for i = 0, buffer.len(buf) - 1, VECTOR_SIZEOF do
+    local v = (vector.create :: any)(buf_ReadVec(buf, i))
     -- ...
   end
 end
 
-doThing(buffer.create(128 * sizeof_vector))
+doThing(buffer.create(128 * VECTOR_SIZEOF))
 ```
 
 *Proposed batch approach:*
 ```luau
-local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
-local sizeof_vector = LUAU_VECTOR_SIZE * 4
+local VECTOR_NDIM = pcall(function() return (vector.one :: any).w end) and 4 or 3
+local VECTOR_SIZEOF = VECTOR_NDIM * 4
 
 -- No 'buf_ReadVec' function needed; less logic to be considered, removing complexity from interacting with buffers in this case.
 
 local function doThing(buf: buffer)
-  for vIdx = 0, buffer.len(buf) - 1, buf_BytesPerVector do
-    local v = vector.create(buffer.readf32(buf, vIdx, LUAU_VECTOR_SIZE))
+  for i = 0, buffer.len(buf) - 1, VECTOR_SIZEOF do
+    local v = (vector.create :: any)(buffer.readf32(buf, i, VECTOR_NDIM))
     -- ...
   end
 end
 
-doThing(buffer.create(128 * sizeof_vector))
+doThing(buffer.create(128 * VECTOR_SIZEOF))
 ```
 
 ### Byte-Based Batched Writes
@@ -96,31 +101,38 @@ end
 
 *Current Luau capabilities:*
 ```luau
-local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
-local sizeof_vector = LUAU_VECTOR_SIZE * 4
+local VECTOR_NDIM = pcall(function() return (vector.one :: any).w end) and 4 or 3
+local VECTOR_SIZEOF = VECTOR_NDIM * 4
 
-local function buf_WriteVec(buf: buffer, i: number, vX: number, vY: number, vZ: number, vW: number?)
+local function buf_WriteVec3(buf: buffer, i: number, vX: number, vY: number, vZ: number)
   buffer.writef32(buf, i, vX)
   buffer.writef32(buf, i + 4, vY)
   buffer.writef32(buf, i + 8, vZ)
-  if vW then
-    buffer.writef32(buf, i + 12, vW)
-  end
-)
+end
 
-local b = buffer.create(sizeof_vector)
+local function buf_WriteVec4(buf: buffer, i: number, vX: number, vY: number, vZ: number, vW: number)
+  buffer.writef32(buf, i, vX)
+  buffer.writef32(buf, i + 4, vY)
+  buffer.writef32(buf, i + 8, vZ)
+  buffer.writef32(buf, i + 12, vW)
+end
+
+local buf_WriteVec = if VECTOR_NDIM == 4 then buf_WriteVec4 else buf_WriteVec3
+local b = buffer.create(VECTOR_SIZEOF)
 local v = vector.one
-buf_WriteVec(b, 0, v.x, v.y, v.z, LUAU_VECTOR_SIZE == 4 and (v :: any).w)
+buf_WriteVec(b, 0, v.x, v.y, v.z, VECTOR_NDIM == 4 and (v :: any).w)
 ```
 
 *Proposed batch approach:*
 ```luau
-local LUAU_VECTOR_SIZE = pcall(function() return vector.one.w end) and 4 or 3
-local sizeof_vector = LUAU_VECTOR_SIZE * 4
+local VECTOR_NDIM = pcall(function() return (vector.one :: any).w end) and 4 or 3
+local VECTOR_SIZEOF = VECTOR_NDIM * 4
 
-local b = buffer.create(sizeof_vector)
+-- No 'buf_WriteVec' function needed; less logic to be considered, removing complexity from interacting with buffers in this case.
+
+local b = buffer.create(VECTOR_SIZEOF)
 local v = vector.one
-buffer.writef32(b, 0, v.x, v.y, v.z, LUAU_VECTOR_SIZE == 4 and (v :: any).w)
+buffer.writef32(b, 0, v.x, v.y, v.z, VECTOR_NDIM == 4 and (v :: any).w)
 ```
 
 ### Bit-Based Batched Operations (Optional)
