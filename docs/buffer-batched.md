@@ -14,7 +14,7 @@ Working closely with buffers often requires verbose loops or repeated function c
 `buffer.unpack*` would function similarly to `buffer.read*`, gaining a third `count: number` parameter, accepting a minimum `number` value of 1, guaranteeing an unambiguous return type. The type suffix indicates the byte size per value (u8/i8=1, u16/i16=2, u32/i32/f32=4, f64=8). The index would step internally after each read, with the number of steps provided by `count - 1`, and the number of bytes advanced per stepped inferred from the function's type suffix. Going OOB would error the same way as `buffer.read*`, preventing any values from being returned.
 
 - **Current:** `buffer.read*(buffer: buffer, index: number) -> number`
-- **Proposed:** `buffer.pack*(buffer: buffer, index: number, count: number) -> ...number`
+- **Proposed:** `buffer.unpack*(buffer: buffer, index: number, count: number) -> ...number`
 
 Batched reads allow direct forwarding of return values into constructors or any Luau function accepting `...number`.
 
